@@ -1,0 +1,6 @@
+---
+# handlers file for mheap.konnect-data-plane
+- name: restart kong
+  ansible.builtin.shell:
+    cmd: kong restart
+  become: true

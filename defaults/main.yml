@@ -1,0 +1,3 @@
+---
+# defaults file for mheap.konnect-data-plane
+konnect_api_url: https://konnect.konghq.com

@@ -1,0 +1,12 @@
+role = data_plane
+database = off
+anonymous_reports = off
+vitals_ttl_days = 732
+cluster_mtls = pki
+cluster_control_plane = {{ control_plane.config.control_plane_server_name }}:443
+cluster_server_name = {{ control_plane.config.control_plane_server_name }}
+cluster_telemetry_endpoint = {{ control_plane.config.telemetry_server_name }}:443
+cluster_telemetry_server_name = {{ control_plane.config.telemetry_server_name }}
+cluster_cert = /etc/kong/tls.crt
+cluster_cert_key = /etc/kong/tls.key
+lua_ssl_trusted_certificate = system,/etc/kong/ca.crt

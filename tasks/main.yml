@@ -1,0 +1,75 @@
+---
+# tasks file for mheap.konnect-data-plane
+- name: "Check that required vars exist"
+  assert:
+    that:
+      - "{{ v }} is defined"
+      - "{{ v }} | length > 0"
+      - "{{ v }} != None"
+    fail_msg: "{{ v }} needs to be set for the role to work"
+    success_msg: "Required variable {{ v }} is defined"
+  loop_control:
+    loop_var: v
+  with_items:
+    - konnect_username
+    - konnect_password
+
+- name: Login to Konnect
+  uri:
+    url: "{{ konnect_api_url }}/api/auth"
+    method: POST
+    body_format: form-urlencoded
+    body:
+      username: "{{ konnect_username }}"
+      password: "{{ konnect_password }}"
+  register: login
+
+- name: Fetch control plane info
+  uri:
+    url: "{{ konnect_api_url }}/api/control_planes"
+    method: GET
+    return_content: yes
+    headers:
+      Cookie: "{{ login.cookies_string }}"
+  register: control_planes
+
+- name: Extract Control Plane
+  set_fact:
+    control_plane: "{{ control_planes.json.data[0] }}"
+
+- name: Generate certificates
+  uri:
+    url: "{{ konnect_api_url }}/api/control_planes/{{ control_plane.id }}/data_planes/certificates"
+    method: POST
+    return_content: yes
+    headers:
+      Cookie: "{{ login.cookies_string }}"
+    status_code: "201"
+  register: data_plane
+
+- name: Install Kong EE
+  apt:
+    deb: https://download.konghq.com/gateway-2.x-ubuntu-xenial/pool/all/k/kong-enterprise-edition/kong-enterprise-edition_2.3.3.2_all.deb
+    update_cache: yes
+  become: true
+
+- name: Write out config
+  ansible.builtin.template:
+    src: kong.conf.j2
+    dest: /etc/kong/kong.conf
+  become: true
+  notify:
+    - restart kong
+
+- name: Write out certificates
+  ansible.builtin.copy:
+    content: "{{ item.content }}"
+    dest: "/etc/kong/{{ item.dest }}"
+  become: true
+  with_items:
+    - { dest: "ca.crt", content: "{{ data_plane.json.ca_cert }}" }
+    - { dest: "tls.key", content: "{{ data_plane.json.key  }}" }
+    - { dest: "tls.crt", content: "{{ data_plane.json.cert }}" }
+  no_log: True
+  notify:
+    - restart kong
